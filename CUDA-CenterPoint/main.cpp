@@ -196,6 +196,10 @@ int main(int argc, const char **argv)
     cudaStream_t stream = NULL;
     checkCudaErrors(cudaStreamCreate(&stream));
 
+    /*centerpoint 模型初始化并加载权重文件，模型分为两部分
+    1、SPCONV稀疏卷积部分（head）
+    2、RPN部分
+    */ 
     CenterPoint centerpoint(Model_File, verbose);
     centerpoint.prepare();
 
@@ -217,6 +221,7 @@ int main(int argc, const char **argv)
 
         checkCudaErrors(cudaMemcpy(d_points, pc_data, length, cudaMemcpyHostToDevice));
 
+        // 模型推理
         centerpoint.doinfer((void *)d_points, points_num, stream);
 
         std::string save_file_name = Save_Dir + file + ".txt";

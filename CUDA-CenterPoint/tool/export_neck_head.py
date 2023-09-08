@@ -64,9 +64,13 @@ class CenterPointVoxelNet_Post(nn.Module):
         assert( len(self.model.bbox_head.tasks) == 6 )
 
     def forward(self, x):
+        
+        # 此处可以认为是把模型裁剪了，只保留原生模型的neck和head部分
+        # 因此需要注意，此处模型的输入x应该是原生模型backbone的输出（也就是3d稀疏卷积后的特征数据）
         x = self.model.neck(x)
         x = self.model.bbox_head.shared_conv(x)
         
+        # 多个检测任务（检测头）分离（此处应该是有6个）
         pred = [ task(x) for task in self.model.bbox_head.tasks ]
 
         return pred[0]['reg'], pred[0]['height'], pred[0]['dim'], pred[0]['rot'], pred[0]['vel'], pred[0]['hm'], \
@@ -185,10 +189,14 @@ def main(args):
     print("Token: ", example["metadata"][0]["token"])
     assert(len(example["points"]) == 1)
 
+    # 构造原生模型
     model = build_detector(cfg.model, train_cfg=None, test_cfg=cfg.test_cfg)
     load_checkpoint(model, args.checkpoint, map_location="cpu")
+    
+    # 截取模型的neck和head部分
     post_model = CenterPointVoxelNet_Post(model)
 
+    # 是否转精度
     if args.half:
         model.eval().half()
         post_model.eval().half()
@@ -214,6 +222,7 @@ def main(args):
         if args.half:
             input_features = input_features.half()
 
+        # 此处backbone就是3D稀疏卷积部分，输出的就是
         x, _ = model.backbone(
             input_features, input_indices, example["batch_size"], example["input_shape"]
             )
@@ -221,7 +230,8 @@ def main(args):
         rpn_input  = torch.zeros(x.shape,dtype=torch.float32,device=torch.device("cuda"))
         if args.half:
             rpn_input  = rpn_input.half()
-
+        
+        # 调用onnx-export进行模型导出
         torch.onnx.export(post_model, rpn_input, "tmp.onnx",
             export_params=True, opset_version=11, do_constant_folding=True,
             keep_initializers_as_inputs=False, input_names = ['input'],
@@ -233,6 +243,7 @@ def main(args):
                             'reg_5', 'height_5', 'dim_5', 'rot_5', 'vel_5', 'hm_5'],
             )
 
+        # 模型简化和保存最终模型onnx
         sim_model, check = simplify_model("tmp.onnx")
         if not check:
             print("[ERROR]:Simplify %s error!"% "tmp.onnx")
