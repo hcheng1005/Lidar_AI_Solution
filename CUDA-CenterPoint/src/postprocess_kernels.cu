@@ -33,13 +33,11 @@ __global__ void predictKernel(
                             int C_height,
                             int C_dim,
                             int C_rot,
-                            int C_vel,
                             int C_hm,
                             const half *reg,
                             const half *height,
                             const half *dim,
                             const half *rot,
-                            const half *vel,
                             const half *hm,
                             unsigned int *detection_num,
                             float *detections,
@@ -57,6 +55,11 @@ __global__ void predictKernel(
     int h = x / W;
     int w = x % W;
 
+    // if((x < 20))
+    // {
+    //     printf("%f,", __half2float(reg[h * W + w]) + w);
+    // }
+
     for (int n = 0; n < N; n++) {
 
         int label = 0;
@@ -72,8 +75,8 @@ __global__ void predictKernel(
 
         if(score < score_threshold) continue;
 
-        auto xs = __half2float(reg[n * C_reg * HW + h * W + w]) + w;
-        auto ys = __half2float(reg[n * C_reg * HW + HW + h * W + w]) + h;
+        auto xs = __half2float(reg[n * C_reg * HW + h * W + w]) + h;
+        auto ys = __half2float(reg[n * C_reg * HW + HW + h * W + w]) + w;
 
         xs = xs * out_size_factor * voxel_size[0] + pc_range[0];
         ys = ys * out_size_factor * voxel_size[1] + pc_range[1];
@@ -97,14 +100,18 @@ __global__ void predictKernel(
         dim_.y = exp(__half2float(dim[n * C_dim * HW + 1 * HW + h * W + w]));
         dim_.z = exp(__half2float(dim[n * C_dim * HW + 2 * HW + h * W + w]));
 
-        auto vx = __half2float(vel[n * C_vel * HW + 0 * HW + h * W + w]);
-        auto vy = __half2float(vel[n * C_vel * HW + 1 * HW + h * W + w]);
+        // auto vx = __half2float(vel[n * C_vel * HW + 0 * HW + h * W + w]);
+        // auto vy = __half2float(vel[n * C_vel * HW + 1 * HW + h * W + w]);
+
         auto rs = atan2(__half2float(rot[n * C_rot * HW + h * W + w]), __half2float(rot[n * C_rot * HW + HW + h * W + w]));
 
         *(float3 *)(&detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 0]) = make_float3(xs, ys, zs);
         *(float3 *)(&detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 3]) = dim_;
-        detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 6] = vx;
-        detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 7] = vy;
+
+        // printf("%f", vx);
+
+        detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 6] = 0.0;
+        detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 7] = 0.0;
         *(float3 *)(&detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 8]) = make_float3(rs, label, score);
     }
 }
@@ -312,13 +319,11 @@ int postprocess_launch(
                     int C_height,
                     int C_dim,
                     int C_rot,
-                    int C_vel,
                     int C_hm,
                     const half *reg,
                     const half *height,
                     const half *dim,
                     const half *rot,
-                    const half *vel,
                     const half *hm,
                     unsigned int *detection_num,
                     float *detections,
@@ -332,8 +337,8 @@ int postprocess_launch(
     dim3 threads(32);
     dim3 blocks(H * W + threads.x - 1/ threads.x);
 
-    predictKernel<<<blocks, threads, 0, stream>>>(N, H, W, C_reg, C_height, C_dim, C_rot, C_vel, C_hm,
-                                                  reg, height, dim, rot, vel, hm, detection_num, detections,
+    predictKernel<<<blocks, threads, 0, stream>>>(N, H, W, C_reg, C_height, C_dim, C_rot, C_hm,
+                                                  reg, height, dim, rot, hm, detection_num, detections,
                                                   post_center_range, out_size_factor, voxel_size, pc_range,
                                                   score_threshold);
     cudaStreamSynchronize(stream);

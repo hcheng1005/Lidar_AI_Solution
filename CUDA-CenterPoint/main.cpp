@@ -32,7 +32,7 @@
 #include "common.h"
 #include "centerpoint.h"
 
-std::string Model_File = "../model/rpn_centerhead_sim.plan";
+std::string Model_File = "../model/centerpoint_rpn.plan";
 std::string Save_Dir   = "../data/prediction/";
 
 void GetDeviceInfo()
@@ -129,8 +129,6 @@ void SaveBoxPred(std::vector<Bndbox> boxes, std::string file_name)
           ofs << box.w << " ";
           ofs << box.l << " ";
           ofs << box.h << " ";
-          ofs << box.vx << " ";
-          ofs << box.vy << " ";
           ofs << box.rt << " ";
           ofs << box.id << " ";
           ofs << box.score << " ";

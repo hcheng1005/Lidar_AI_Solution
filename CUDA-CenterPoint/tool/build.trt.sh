@@ -22,18 +22,18 @@
 
 trt_version=8503
 
-if [ ! -f "model/rpn_centerhead_sim.plan.${trt_version}" ]; then
-    echo Building the model: model/rpn_centerhead_sim.plan.${trt_version}, this will take 2 minutes. Wait a moment 🤗🤗🤗~.
-    trtexec --onnx=model/rpn_centerhead_sim.onnx \
-        --saveEngine=model/rpn_centerhead_sim.plan.${trt_version} \
+if [ ! -f "model/centerpoint_rpn.plan.${trt_version}" ]; then
+    echo Building the model: model/centerpoint_rpn.plan.${trt_version}, this will take 2 minutes. Wait a moment 🤗🤗🤗~.
+    trtexec --onnx=model/centerpoint_rpn.onnx \
+        --saveEngine=model/centerpoint_rpn.plan.${trt_version} \
         --workspace=4096 --fp16 --outputIOFormats=fp16:chw \
         --inputIOFormats=fp16:chw --verbose --dumpLayerInfo \
         --dumpProfile --separateProfileRun \
-        --profilingVerbosity=detailed > model/rpn_centerhead_sim.${trt_version}.log 2>&1
+        --profilingVerbosity=detailed > model/centerpoint_rpn.${trt_version}.log 2>&1
 
-    rm -rf model/rpn_centerhead_sim.plan
+    rm -rf model/centerpoint_rpn.plan
     dir=`pwd`
-    ln -s ${dir}/model/rpn_centerhead_sim.plan.${trt_version} model/rpn_centerhead_sim.plan
+    ln -s ${dir}/model/centerpoint_rpn.plan.${trt_version} model/centerpoint_rpn.plan
 else
-    echo Model model/rpn_centerhead_sim.plan.${trt_version} already build 🙋🙋🙋.
+    echo Model model/centerpoint_rpn.plan.${trt_version} already build 🙋🙋🙋.
 fi

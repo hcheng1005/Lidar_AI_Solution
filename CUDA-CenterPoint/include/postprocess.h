@@ -68,13 +68,11 @@ class PostProcessCuda {
       int C_height,
       int C_dim,
       int C_rot,
-      int C_vel,
       int C_hm,
       const half *reg,
       const half *height,
       const half *dim,
       const half *rot,
-      const half *vel,
       const half *hm,
       unsigned int *detection_num,
       float *detections, cudaStream_t stream);

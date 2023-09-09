@@ -39,7 +39,7 @@
 const unsigned int MAX_DET_NUM = 1000;           // nms_pre_max_size = 1000;
 const unsigned int DET_CHANNEL = 11;
 const unsigned int MAX_POINTS_NUM = 300000;
-const unsigned int NUM_TASKS = 6;
+const unsigned int NUM_TASKS = 1;
 
 #define checkCudaErrors(op)                                                                  \
   {                                                                                          \
@@ -55,33 +55,33 @@ const unsigned int NUM_TASKS = 6;
 class Params
 {
   public:
-    const unsigned int task_num_stride[NUM_TASKS] = { 0, 1, 3, 5, 6, 8, };
-    static const unsigned int num_classes = 10;
-    const char *class_name[num_classes] = { "car", "truck", "construction_vehicle", "bus", "trailer", "barrier", "motorcycle", "bicycle", "pedestrian", "traffic_cone"};
+    const unsigned int task_num_stride[NUM_TASKS] = {0};
+    static const unsigned int num_classes = 3;
+    const char *class_name[num_classes] = {"Car", "Pedestrian", "Cyclist"};
 
     const float out_size_factor = 8;
-    const float voxel_size[2] = { 0.075, 0.075, };
-    const float pc_range[2] = { -54, -54, };
+    const float voxel_size[2] = { 0.05, 0.05};
+    const float pc_range[2] = { 0, -40, };
     const float score_threshold = 0.1;
-    const float post_center_range[6] = { -61.2, -61.2, -10.0, 61.2, 61.2, 10.0, };
-    const float nms_iou_threshold = 0.2;
+    const float post_center_range[6] = {0, -40, -3, 70.4, 40, 1};
+    const float nms_iou_threshold = 0.1;
     const unsigned int nms_pre_max_size = MAX_DET_NUM;
-    const unsigned int nms_post_max_size= 83;
+    const unsigned int nms_post_max_size= 20;
 
-    const float min_x_range = -54;
-    const float max_x_range = 54;
-    const float min_y_range = -54;
-    const float max_y_range = 54;
-    const float min_z_range = -5.0;
-    const float max_z_range = 3.0;
+    const float min_x_range = 0;
+    const float max_x_range = 70.4;
+    const float min_y_range = -40;
+    const float max_y_range = 40;
+    const float min_z_range = -3;
+    const float max_z_range = 1.0;
     // the size of a pillar
-    const float pillar_x_size = 0.075;
-    const float pillar_y_size = 0.075;
-    const float pillar_z_size = 0.2;
-    const int max_points_per_voxel = 10;
+    const float pillar_x_size = 0.05;
+    const float pillar_y_size = 0.05;
+    const float pillar_z_size = 0.1;
+    const int max_points_per_voxel = 5;
 
     const unsigned int max_voxels = 160000;
-    const unsigned int feature_num = 5;
+    const unsigned int feature_num = 4;
 
     Params() {};
 

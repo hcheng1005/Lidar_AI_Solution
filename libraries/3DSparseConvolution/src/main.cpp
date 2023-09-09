@@ -81,15 +81,26 @@ Task load_task(const string& name, spconv::Precision precision) {
         "python tool/compare.py workspace/bevfusion/infer.zyx.dense "
         "workspace/bevfusion/output.zyx.dense --detail";
   } else if (name == "centerpointZYX") {
-    task.engine = spconv::load_engine_from_onnx("centerpoint/centerpoint.scn.PTQ.onnx", precision);
-    task.features = spconv::Tensor::load("centerpoint/in_features.torch.fp16.tensor");
-    task.indices = spconv::Tensor::load("centerpoint/in_indices_zyx.torch.int32.tensor");
-    task.grid_size = {41, 1440, 1440};
+    // task.engine = spconv::load_engine_from_onnx("centerpoint/centerpoint.scn.PTQ.onnx", precision);
+    // task.features = spconv::Tensor::load("centerpoint/in_features.torch.fp16.tensor");
+    // task.indices = spconv::Tensor::load("centerpoint/in_indices_zyx.torch.int32.tensor");
+    // task.grid_size = {41, 1440, 1440};
+    // task.order = IndiceOrder::ZYX;
+    // task.save_dense = "centerpoint/output.zyx.dense";
+    // task.compare_cmd =
+    //     "python tool/compare.py workspace/centerpoint/out_dense.torch.fp16.tensor "
+    //     "workspace/centerpoint/output.zyx.dense "
+    //     "--detail";
+
+    task.engine = spconv::load_engine_from_onnx("centerpoint/centerpoint.scn.onnx", precision);
+    task.features = spconv::Tensor::load("centerpoint/voxels.tensor");
+    task.indices = spconv::Tensor::load("centerpoint/coors.tensor");
+    task.grid_size = {41, 1408, 1600};
     task.order = IndiceOrder::ZYX;
-    task.save_dense = "centerpoint/output.zyx.dense";
+    task.save_dense = "centerpoint/output2.zyx.dense";
     task.compare_cmd =
         "python tool/compare.py workspace/centerpoint/out_dense.torch.fp16.tensor "
-        "workspace/centerpoint/output.zyx.dense "
+        "workspace/centerpoint/output2.zyx.dense "
         "--detail";
   } else {
     Assertf(false, "Unsupport task name: %s", name.c_str());
@@ -117,7 +128,7 @@ void do_memory_usage_test(spconv::Precision precision) {
   auto forward = [&]() {
     task.engine->input(0)->set_data(task.features.shape, spconv::DataType::Float16, task.features.ptr(),
                          task.indices.shape, spconv::DataType::Int32, task.indices.ptr(),
-                         {41, 1440, 1440});
+                         {41, 1408, 1600});
     task.engine->forward(stream);
   };
 
@@ -172,11 +183,12 @@ void do_e2e_run(spconv::Precision precision) {
   auto task = load_task("centerpointZYX", precision);
   // auto task = load_task("bevfusionXYZ", precision);
   // auto task = load_task("bevfusionZYX", precision);
-  auto file = "ff9eff4389a740848f9a56ad749a4ae8.bin";
+  // auto file = "ff9eff4389a740848f9a56ad749a4ae8.bin";
+  auto file = "000000.bin";
   printf("Load %s\n", file);
 
   // Currently, only point cloud features with input channel 5 are supported
-  auto pc = spconv::Tensor::load_from_raw(file, {-1, 5}, spconv::DataType::Float16);
+  auto pc = spconv::Tensor::load_from_raw(file, {-1, 4}, spconv::DataType::Float16);
   timer.start(stream);
   voxelization.generateVoxels(pc.ptr<half>(), pc.size(0), task.order, stream);
   timer.stop("Voxelization");
@@ -189,7 +201,7 @@ void do_e2e_run(spconv::Precision precision) {
   timer.start(stream);
 
   task.engine->input(0)->set_data(
-    {num_valid, 5}, spconv::DataType::Float16, features, {num_valid, 4},
+    {num_valid, 4}, spconv::DataType::Float16, features, {num_valid, 4},
     spconv::DataType::Int32, indices, grid_size);
   task.engine->forward(stream);
   auto result = task.engine->output(0);

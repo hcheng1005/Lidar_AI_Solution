@@ -71,7 +71,6 @@ CenterPoint::CenterPoint(std::string modelFile, bool verbose): verbose_(verbose)
         checkCudaErrors(cudaMalloc((void **)&d_height_[i], trt_->getBindingNumel("height_" + std::to_string(i)) * sizeof(half)));
         checkCudaErrors(cudaMalloc((void **)&d_dim_[i], trt_->getBindingNumel("dim_" + std::to_string(i)) * sizeof(half)));
         checkCudaErrors(cudaMalloc((void **)&d_rot_[i], trt_->getBindingNumel("rot_" + std::to_string(i)) * sizeof(half)));
-        checkCudaErrors(cudaMalloc((void **)&d_vel_[i], trt_->getBindingNumel("vel_" + std::to_string(i)) * sizeof(half)));
         checkCudaErrors(cudaMalloc((void **)&d_hm_[i], trt_->getBindingNumel("hm_" + std::to_string(i)) * sizeof(half)));
 
         if(i==0){
@@ -87,11 +86,22 @@ CenterPoint::CenterPoint(std::string modelFile, bool verbose): verbose_(verbose)
             dim_c_ = d[1];
             d = trt_->getBindingDims("rot_" + std::to_string(i));
             rot_c_ = d[1];
-            d = trt_->getBindingDims("vel_" + std::to_string(i));
-            vel_c_ = d[1];
+            // d = trt_->getBindingDims("vel_" + std::to_string(i));
+            // vel_c_ = d[1];
         }
         auto d = trt_->getBindingDims("hm_" + std::to_string(i));
         hm_c_[i] = d[1];
+
+
+        std::cout << std::to_string(reg_n_) << ", "
+        << std::to_string(reg_c_) << ", "
+        << std::to_string(reg_h_) << ", "
+        << std::to_string(reg_w_) << ", "
+        << std::to_string(height_c_) << ", "
+        << std::to_string(dim_c_) << ", " 
+        << std::to_string(rot_c_) << ", "
+        << std::to_string(hm_c_[0]) << std::endl;
+
     }
     h_mask_size_ = params_.nms_pre_max_size * DIVUP(params_.nms_pre_max_size, NMS_THREADS_PER_BLOCK) * sizeof(uint64_t);
     checkCudaErrors(cudaMallocHost((void **)&h_mask_, h_mask_size_));
@@ -138,28 +148,26 @@ int CenterPoint::doinfer(void* points, unsigned int point_num, cudaStream_t stre
     timing_pre_.push_back(timer_.stop("Voxelization", verbose_));
 
     unsigned int valid_num = pre_->getOutput(&d_voxel_features, &d_voxel_indices, sparse_shape);
+
     if (verbose_) {
         std::cout << "valid_num: " << valid_num <<std::endl;
+        std::cout << "[ " << sparse_shape.at(0) << " ," << sparse_shape.at(1) << " ," << sparse_shape.at(2) << " ," << "]";
     }
 
     timer_.start(stream);
     // 稀疏卷积3D Backbone
     auto result = scn_engine_->forward(
-        {valid_num, 5}, spconv::DType::Float16, d_voxel_features,
+        {valid_num, 4}, spconv::DType::Float16, d_voxel_features,
         {valid_num, 4}, spconv::DType::Int32,   d_voxel_indices,
         1, sparse_shape, stream
     );
+
     timing_scn_engine_.push_back(timer_.stop("3D Backbone", verbose_));
 
     timer_.start(stream);
 
     // RPN + Head
-    trt_->forward({result->features_data(), d_reg_[0], d_height_[0], d_dim_[0], d_rot_[0], d_vel_[0], d_hm_[0],
-                                                d_reg_[1], d_height_[1], d_dim_[1], d_rot_[1], d_vel_[1], d_hm_[1],
-                                                d_reg_[2], d_height_[2], d_dim_[2], d_rot_[2], d_vel_[2], d_hm_[2],
-                                                d_reg_[3], d_height_[3], d_dim_[3], d_rot_[3], d_vel_[3], d_hm_[3],
-                                                d_reg_[4], d_height_[4], d_dim_[4], d_rot_[4], d_vel_[4], d_hm_[4],
-                                                d_reg_[5], d_height_[5], d_dim_[5], d_rot_[5], d_vel_[5], d_hm_[5]}, stream);
+    trt_->forward({result->features_data(), d_reg_[0], d_height_[0], d_dim_[0], d_rot_[0], d_hm_[0]}, stream);
     timing_trt_.push_back(timer_.stop("RPN + Head", verbose_));
     nms_pred_.clear();
     
@@ -170,16 +178,17 @@ int CenterPoint::doinfer(void* points, unsigned int point_num, cudaStream_t stre
         checkCudaErrors(cudaMemset(d_detections_, 0, MAX_DET_NUM * DET_CHANNEL * sizeof(float)));
         checkCudaErrors(cudaMemset(d_detections_reshape_, 0, MAX_DET_NUM * DET_CHANNEL * sizeof(float)));
 
-        post_->doPostDecodeCuda(reg_n_, reg_h_, reg_w_, reg_c_, height_c_, dim_c_, rot_c_, vel_c_, hm_c_[i_task],
+        post_->doPostDecodeCuda(reg_n_, reg_h_, reg_w_, reg_c_, height_c_, dim_c_, rot_c_, hm_c_[i_task],
                                 d_reg_[i_task],
                                 d_height_[i_task],
                                 d_dim_[i_task],
                                 d_rot_[i_task],
-                                d_vel_[i_task],
                                 d_hm_[i_task],
                                 h_detections_num_,
                                 d_detections_, stream);
         if(*h_detections_num_ == 0) continue;
+
+        // std::cout << "detections_ size: " << (*h_detections_num_) << std::endl;
 
         checkCudaErrors(cudaMemcpyAsync(detections_.data(), d_detections_, MAX_DET_NUM * DET_CHANNEL * sizeof(float), cudaMemcpyDeviceToHost, stream));
         checkCudaErrors(cudaStreamSynchronize(stream));
@@ -228,6 +237,7 @@ int CenterPoint::doinfer(void* points, unsigned int point_num, cudaStream_t stre
     }
     return 0;
 }
+
 
 void CenterPoint::perf_report(){
     float a = getAverage(timing_pre_);
