@@ -62,9 +62,9 @@ class Params
     const float out_size_factor = 8;
     const float voxel_size[2] = { 0.05, 0.05};
     const float pc_range[2] = { 0, -40, };
-    const float score_threshold = 0.1;
+    const float score_threshold = 0.3;
     const float post_center_range[6] = {0, -40, -3, 70.4, 40, 1};
-    const float nms_iou_threshold = 0.1;
+    const float nms_iou_threshold = 0.7;
     const unsigned int nms_pre_max_size = MAX_DET_NUM;
     const unsigned int nms_post_max_size= 20;
 

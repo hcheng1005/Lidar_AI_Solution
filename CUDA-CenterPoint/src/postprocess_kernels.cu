@@ -55,11 +55,6 @@ __global__ void predictKernel(
     int h = x / W;
     int w = x % W;
 
-    // if((x < 20))
-    // {
-    //     printf("%f,", __half2float(reg[h * W + w]) + w);
-    // }
-
     for (int n = 0; n < N; n++) {
 
         int label = 0;
@@ -75,8 +70,8 @@ __global__ void predictKernel(
 
         if(score < score_threshold) continue;
 
-        auto xs = __half2float(reg[n * C_reg * HW + h * W + w]) + h;
-        auto ys = __half2float(reg[n * C_reg * HW + HW + h * W + w]) + w;
+        auto xs = __half2float(reg[n * C_reg * HW + h * W + w]) + w;
+        auto ys = __half2float(reg[n * C_reg * HW + HW + h * W + w]) + h;
 
         xs = xs * out_size_factor * voxel_size[0] + pc_range[0];
         ys = ys * out_size_factor * voxel_size[1] + pc_range[1];
@@ -104,14 +99,15 @@ __global__ void predictKernel(
         // auto vy = __half2float(vel[n * C_vel * HW + 1 * HW + h * W + w]);
 
         auto rs = atan2(__half2float(rot[n * C_rot * HW + h * W + w]), __half2float(rot[n * C_rot * HW + HW + h * W + w]));
+        // auto rs = atan2(__half2float(rot[n * C_rot * HW + HW + h * W + w]), __half2float(rot[n * C_rot * HW + h * W + w]));
 
         *(float3 *)(&detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 0]) = make_float3(xs, ys, zs);
         *(float3 *)(&detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 3]) = dim_;
 
         // printf("%f", vx);
 
-        detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 6] = 0.0;
-        detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 7] = 0.0;
+        detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 6] = 0.0; // VX
+        detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 7] = 0.0; // VY
         *(float3 *)(&detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 8]) = make_float3(rs, label, score);
     }
 }

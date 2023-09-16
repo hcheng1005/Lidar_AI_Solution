@@ -96,7 +96,7 @@ int PreProcessCuda::generateVoxels(const float *points, size_t points_size, cuda
           params_.pillar_x_size, params_.pillar_y_size, params_.pillar_z_size,
           params_.getGridYSize(), params_.getGridXSize(), params_.feature_num, params_.max_voxels,
           params_.max_points_per_voxel, hash_table_,
-    d_voxel_num_, /*d_voxel_features_*/voxels_temp_, d_voxel_indices_,
+    d_voxel_num_, voxels_temp_, d_voxel_indices_,
     d_real_num_voxels_, stream));
     checkCudaErrors(cudaMemcpyAsync(h_real_num_voxels_, d_real_num_voxels_, sizeof(int), cudaMemcpyDeviceToHost, stream));
     checkCudaErrors(cudaStreamSynchronize(stream));

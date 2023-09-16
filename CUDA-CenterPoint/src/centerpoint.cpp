@@ -31,10 +31,21 @@
 #include "NvInferRuntime.h"
 #include "timer.hpp"
 
+#include <iostream>
+
 #include <algorithm>
 #include <math.h>
 #include <sys/time.h>
 #include <unistd.h>
+
+const int head_size = 200 * 176;
+half center_half[2*head_size], center_z_half[1*head_size], size_dim_half[3*head_size], rot__half[2*head_size], hm__half[3*head_size];
+float center[2*head_size], center_z[1*head_size], size_dim[3*head_size], rot_[2*head_size], hm_[3*head_size];
+float feature_[256*200*176];
+half feature_half[256*200*176];
+
+half voxel_features_python[20*10000];
+float voxel_idx_python[20*10000];
 
 template<typename T>
 double getAverage(std::vector<T> const& v) {
@@ -52,7 +63,7 @@ CenterPoint::CenterPoint(std::string modelFile, bool verbose): verbose_(verbose)
     pre_.reset(new PreProcessCuda());
     post_.reset(new PostProcessCuda());
 
-    scn_engine_ = spconv::load_engine_from_onnx("../model/centerpoint.scn.onnx");
+    scn_engine_ = spconv::load_engine_from_onnx("/root/autodl-tmp/code/OpenPCDet/libraries/3DSparseConvolution/tool/centerpoint-export/centerpoint.scn.onnx",  spconv::Precision::Float16);
 
     checkCudaErrors(cudaMallocHost((void **)&h_detections_num_, sizeof(unsigned int)));
     checkCudaErrors(cudaMemset(h_detections_num_, 0, sizeof(unsigned int)));
@@ -143,18 +154,38 @@ int CenterPoint::doinfer(void* points, unsigned int point_num, cudaStream_t stre
     float elapsedTime = 0.0f;
 
     timer_.start(stream);
+
     // 体素生成
     pre_->generateVoxels((float *)points, point_num, stream);
     timing_pre_.push_back(timer_.stop("Voxelization", verbose_));
 
     unsigned int valid_num = pre_->getOutput(&d_voxel_features, &d_voxel_indices, sparse_shape);
 
-    if (verbose_) {
-        std::cout << "valid_num: " << valid_num <<std::endl;
-        std::cout << "[ " << sparse_shape.at(0) << " ," << sparse_shape.at(1) << " ," << sparse_shape.at(2) << " ," << "]";
-    }
-
     timer_.start(stream);
+
+    // std::string str1 = "/root/autodl-tmp/code/Lidar_AI_Solution/CUDA-CenterPoint/voxel_features.bin";
+    // std::ifstream ifs1(str1, std::ios::binary);
+    // ifs1.read((char*)voxel_features_python , 36368 * 4 * sizeof(half));
+
+    // std::string str2 = "/root/autodl-tmp/code/Lidar_AI_Solution/CUDA-CenterPoint/src/voxel_coords.bin";
+    // std::ifstream ifs2(str2, std::ios::binary);
+    // ifs2.read((char*)voxel_idx_python , 36368 * 4 * sizeof(float));
+
+    // for(int idx_=0; idx_<36368*4; idx_++)
+    // {
+    //    d_voxel_features[idx_] = voxel_features_python[idx_];
+    //    d_voxel_indices[idx_] = voxel_idx_python[idx_];
+    // }
+
+    // for(int ii=0; ii < 16; ii++)
+    // {
+    //     // std::cout << std::to_string(d_voxel_features[ii]) << std::endl;   
+    //     std::cout << std::to_string(voxel_features_python[ii]) << std::endl;    
+    //     // std::cout << std::to_string(d_voxel_indices[ii]) << std::endl;  
+    // }
+
+    // std::cout << " load voxel_features data sucess ! " << std::endl;
+
     // 稀疏卷积3D Backbone
     auto result = scn_engine_->forward(
         {valid_num, 4}, spconv::DType::Float16, d_voxel_features,
@@ -162,14 +193,71 @@ int CenterPoint::doinfer(void* points, unsigned int point_num, cudaStream_t stre
         1, sparse_shape, stream
     );
 
+    // for(int idx_=0; idx_<valid_num * 4; idx_++)
+    // {
+    //     voxel_features_python[idx_] = d_voxel_features[idx_];
+    // }
+    // std::ofstream d_voxel_features_("d_voxel_features.bin", std::ios::binary);
+    // d_voxel_features_.write((char *)(&voxel_features_python[0]), valid_num * 4*sizeof(half)); 
+    // d_voxel_features_.close();
+
+    // std::cout << std::to_string(valid_num) << std::endl;
+
     timing_scn_engine_.push_back(timer_.stop("3D Backbone", verbose_));
 
     timer_.start(stream);
+
+    // // 读取python d_voxel_features bin文件
+    // std::string str = "/root/autodl-tmp/code/Lidar_AI_Solution/CUDA-CenterPoint/src/voxel_features.bin";
+    
+    // std::ifstream ifs(str, std::ios::binary);
+    // ifs.read((char*)feature_ , 256*200*176*sizeof(float));
+    // ifs.close();
+
+    // for(int idx_=0; idx_<(256*200*176); idx_++)
+    // {
+    //     feature_half[idx_] = feature_[idx_];
+    // }
+
+    // // 保存features_data数据
+    // checkCudaErrors(cudaMemcpyAsync(feature_half, result->features_data(), 256 * 200 * 176 * sizeof(half), cudaMemcpyDeviceToHost, stream));
+    // for(int idx_=0; idx_<256*200*176; idx_++)
+    // {
+    //     feature_[idx_] = feature_half[idx_];
+    // }
+    // std::ofstream ffeature_("feature_.bin", std::ios::binary);
+    // ffeature_.write((char *)(&feature_[0]), 256 * 200 * 176 * sizeof(float)); 
+    // ffeature_.close();
+
+    // // 读取python features_data bin文件
+    // std::string str = "/root/autodl-tmp/code/Lidar_AI_Solution/CUDA-CenterPoint/src/spatial_features.bin";
+    
+    // std::ifstream ifs(str, std::ios::binary);
+    // ifs.read((char*)feature_ , 256*200*176*sizeof(float));
+    // ifs.close();
+
+    // for(int idx_=0; idx_<(256*200*176); idx_++)
+    // {
+    //     feature_half[idx_] = feature_[idx_];
+    // }
+
+    // checkCudaErrors(cudaMemcpyAsync(result->features_data(), feature_half , 256*200*176*sizeof(half), cudaMemcpyHostToDevice, stream));
 
     // RPN + Head
     trt_->forward({result->features_data(), d_reg_[0], d_height_[0], d_dim_[0], d_rot_[0], d_hm_[0]}, stream);
     timing_trt_.push_back(timer_.stop("RPN + Head", verbose_));
     nms_pred_.clear();
+
+    // checkCudaErrors(cudaMemcpyAsync(center_half, d_reg_[0], 2 * head_size * sizeof(half), cudaMemcpyDeviceToHost, stream));
+
+    // // 保存检测头结果
+    // for(int idx_=0; idx_<(2*head_size); idx_++)
+    // {
+    //     center[idx_] = center_half[idx_];
+    // }
+    // std::ofstream fout("center.bin", std::ios::binary);
+    // fout.write((char *)(&center[0]), 2*head_size*sizeof(float)); 
+    // fout.close();
     
     // Decode + NMS
     timer_.start(stream);
@@ -193,15 +281,18 @@ int CenterPoint::doinfer(void* points, unsigned int point_num, cudaStream_t stre
         checkCudaErrors(cudaMemcpyAsync(detections_.data(), d_detections_, MAX_DET_NUM * DET_CHANNEL * sizeof(float), cudaMemcpyDeviceToHost, stream));
         checkCudaErrors(cudaStreamSynchronize(stream));
 
+        // 根据score从大到小排序
         std::sort(detections_.begin(), detections_.end(),
                 [](float11 boxes1, float11 boxes2) { return boxes1.val[10] > boxes2.val[10]; });
 
         checkCudaErrors(cudaMemcpyAsync(d_detections_, detections_.data() , MAX_DET_NUM * DET_CHANNEL * sizeof(float), cudaMemcpyHostToDevice, stream));
         checkCudaErrors(cudaMemsetAsync(h_mask_, 0, h_mask_size_, stream));
 
+        // 格式转换（减少不必要的维度：比如速度）
         post_->doPermuteCuda(*h_detections_num_, d_detections_, d_detections_reshape_, stream);
         checkCudaErrors(cudaStreamSynchronize(stream));
 
+        // NMS by CUDA
         post_->doPostNMSCuda(*h_detections_num_, d_detections_reshape_, h_mask_, stream);
         checkCudaErrors(cudaStreamSynchronize(stream));
 

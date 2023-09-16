@@ -26,7 +26,7 @@ if [ ! -f "model/centerpoint_rpn.plan.${trt_version}" ]; then
     echo Building the model: model/centerpoint_rpn.plan.${trt_version}, this will take 2 minutes. Wait a moment 🤗🤗🤗~.
     trtexec --onnx=model/centerpoint_rpn.onnx \
         --saveEngine=model/centerpoint_rpn.plan.${trt_version} \
-        --workspace=4096 --fp16 --outputIOFormats=fp16:chw \
+        --workspace=4096  --fp16 --outputIOFormats=fp16:chw \
         --inputIOFormats=fp16:chw --verbose --dumpLayerInfo \
         --dumpProfile --separateProfileRun \
         --profilingVerbosity=detailed > model/centerpoint_rpn.${trt_version}.log 2>&1
