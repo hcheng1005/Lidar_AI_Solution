@@ -98,9 +98,10 @@ __global__ void predictKernel(
         // auto vx = __half2float(vel[n * C_vel * HW + 0 * HW + h * W + w]);
         // auto vy = __half2float(vel[n * C_vel * HW + 1 * HW + h * W + w]);
 
-        auto rs = atan2(__half2float(rot[n * C_rot * HW + h * W + w]), __half2float(rot[n * C_rot * HW + HW + h * W + w]));
-        // auto rs = atan2(__half2float(rot[n * C_rot * HW + HW + h * W + w]), __half2float(rot[n * C_rot * HW + h * W + w]));
+        auto rs = atan2(__half2float(rot[n * C_rot * HW + HW + h * W + w]), __half2float(rot[n * C_rot * HW + h * W + w]));
 
+        // printf("%f %f %f %f %f \n", xs, ys, rs, __half2float(rot[n * C_rot * HW + h * W + w]), __half2float(rot[n * C_rot * HW + HW + h * W + w]));
+        
         *(float3 *)(&detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 0]) = make_float3(xs, ys, zs);
         *(float3 *)(&detections[n * MAX_DET_NUM * DET_CHANNEL + DET_CHANNEL * curDet + 3]) = dim_;
 

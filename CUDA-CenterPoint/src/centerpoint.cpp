@@ -248,7 +248,7 @@ int CenterPoint::doinfer(void* points, unsigned int point_num, cudaStream_t stre
     timing_trt_.push_back(timer_.stop("RPN + Head", verbose_));
     nms_pred_.clear();
 
-    // checkCudaErrors(cudaMemcpyAsync(center_half, d_reg_[0], 2 * head_size * sizeof(half), cudaMemcpyDeviceToHost, stream));
+    checkCudaErrors(cudaMemcpyAsync(center_half, d_reg_[0], 2 * head_size * sizeof(half), cudaMemcpyDeviceToHost, stream));
 
     // // 保存检测头结果
     // for(int idx_=0; idx_<(2*head_size); idx_++)

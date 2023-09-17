@@ -153,32 +153,32 @@ def layer_fusion_bn(model : SpMiddleResNetFHD):
             fuse_sparse_basic_block(block, is_fuse_bn = True, is_fuse_relu =False)
     return model
 
-def layer_fusion_relu(model : SpMiddleResNetFHD):
-    # fuse all conv
-    for conv_name in ["conv_input", "conv2", "conv3", "conv4", "extra_conv"]:
-        conv_instance = getattr(model, conv_name) #
-        if(conv_name == "conv_input"):
-            c, b, r = [conv_instance[i] for i in range(3)]
-            fuse_bn(c, b)
-            c.act_type = tv.gemm.Activation.ReLU
-            new_conv = c
-            setattr(model, conv_name, new_conv)
-        else:
-            c, r = [conv_instance[i] for i in range(2)]
-            c.act_type = tv.gemm.Activation.ReLU
-            if len(conv_instance) == 2:
-                new_conv = c
-            else:
-                new_conv = SparseSequential(
-                    *([c] + [conv_instance[i] for i in range(2, len(conv_instance))])
-                )
-            setattr(model, conv_name, new_conv)
+# def layer_fusion_relu(model : SpMiddleResNetFHD):
+#     # fuse all conv
+#     for conv_name in ["conv_input", "conv2", "conv3", "conv4", "extra_conv"]:
+#         conv_instance = getattr(model, conv_name) #
+#         if(conv_name == "conv_input"):
+#             c, b, r = [conv_instance[i] for i in range(3)]
+#             fuse_bn(c, b)
+#             c.act_type = tv.gemm.Activation.ReLU
+#             new_conv = c
+#             setattr(model, conv_name, new_conv)
+#         else:
+#             c, r = [conv_instance[i] for i in range(2)]
+#             c.act_type = tv.gemm.Activation.ReLU
+#             if len(conv_instance) == 2:
+#                 new_conv = c
+#             else:
+#                 new_conv = SparseSequential(
+#                     *([c] + [conv_instance[i] for i in range(2, len(conv_instance))])
+#                 )
+#             setattr(model, conv_name, new_conv)
 
-    # fuse all SparseBasicBlock
-    for name, block in model.named_modules():
-        if isinstance(block, SparseBasicBlock):
-            fuse_sparse_basic_block(block, is_fuse_bn= False, is_fuse_relu= True)
-    return model
+#     # fuse all SparseBasicBlock
+#     for name, block in model.named_modules():
+#         if isinstance(block, SparseBasicBlock):
+#             fuse_sparse_basic_block(block, is_fuse_bn= False, is_fuse_relu= True)
+#     return model
 
 
 # export for orignal model
