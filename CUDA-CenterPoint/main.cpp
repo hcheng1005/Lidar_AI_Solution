@@ -166,6 +166,8 @@ static void help()
     exit(EXIT_SUCCESS);
 }
 
+float tmp_data[400000*5];
+
 int main(int argc, const char **argv)
 {
     if (argc < 2)
@@ -214,10 +216,27 @@ int main(int argc, const char **argv)
         void *pc_data = NULL;
 
         loadData(dataFile.c_str() , &pc_data, &length);
-        size_t points_num = length / (params.feature_num * sizeof(float)) ;
+
+
+        size_t points_num = length / (4 * sizeof(float)) ;
+
+        for(int i=0; i<points_num; ++i)
+        {
+            tmp_data[5*i] = ((float *)pc_data)[4*i + 0];
+            tmp_data[5*i+1] = ((float *)pc_data)[4*i + 1];
+            tmp_data[5*i+2] = ((float *)pc_data)[4*i + 2];
+            tmp_data[5*i+3] = ((float *)pc_data)[4*i + 3];
+            tmp_data[5*i+4] = 0;
+
+            if(i<10)
+            {
+                std::cout << tmp_data[5*i] << ", " << tmp_data[5*i+1] << ", " << tmp_data[5*i+2] << ", " << tmp_data[5*i+3] <<std::endl;
+            }
+        }
+
         std::cout << "find points num: " << points_num << std::endl;
 
-        checkCudaErrors(cudaMemcpy(d_points, pc_data, length, cudaMemcpyHostToDevice));
+        checkCudaErrors(cudaMemcpy(d_points, tmp_data, length, cudaMemcpyHostToDevice));
 
         // 模型推理
         centerpoint.doinfer((void *)d_points, points_num, stream);

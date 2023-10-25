@@ -31,8 +31,8 @@ set(arch ${CMAKE_HOST_SYSTEM_PROCESSOR})
 #   set(CUDA_TOOLKIT_ROOT_DIR /root/.kiwi/lib/cuda-11.8)
 # endif()
 
-set(TENSORRT_ROOT         /root/TensorRT-8.5.1.7)
-set(CUDA_TOOLKIT_ROOT_DIR /root/TensorRT-8.5.1.7)
+set(TENSORRT_ROOT         /data/package/TensorRT-8.2.0.6)
+# set(CUDA_TOOLKIT_ROOT_DIR /root/TensorRT-8.5.1.7)
 
 set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -Wextra -Wall -Wno-deprecated-declarations -O3")
